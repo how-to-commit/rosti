@@ -3,31 +3,26 @@
 
 use core::panic::PanicInfo;
 
+pub mod framebuffer;
+
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-static HELLO_WORLD: &[u8] = b"Hello world!";
-
-/// original kernel start function
-#[no_mangle]
-pub extern "C" fn _k_start() -> ! {
-    let vga_buffer = 0xb8000 as *mut u8;
-
-    for (i, &byte) in HELLO_WORLD.iter().enumerate() {
-        unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-        }
-    }
-
-    loop {}
-}
-
-// bootloader_api
 #[no_mangle]
 fn kernel_main(boot_info: &'static mut bootloader_api::BootInfo) -> ! {
-    _k_start();
+    let framebuf_info = boot_info.framebuffer.as_mut().unwrap().info();
+    let framebuf_raw = boot_info.framebuffer.as_mut().unwrap().buffer_mut();
+    let mut framewriter = framebuffer::FrameBufferWriter::new(framebuf_raw, framebuf_info);
+
+    for x in 10..50 {
+        for y in 10..50 {
+            framewriter.draw_pixel(x, y, 68, 75, 110);
+        }
+    }
+    // stop
+    loop {}
 }
 
 bootloader_api::entry_point!(kernel_main);
