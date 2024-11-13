@@ -5,3 +5,10 @@ version = 4
 [[package]]
 name = "kernel"
 version = "0.1.0"
+dependencies = [
+ "kvolatile",
+]
+
+[[package]]
+name = "kvolatile"
+version = "0.1.0"

@@ -1,5 +1,5 @@
 use core::fmt::Write;
-use core::ptr::{read_volatile, write_volatile};
+use kvolatile::KVolatile;
 
 const BUFFER_WIDTH: usize = 80;
 const BUFFER_HEIGHT: usize = 25;
@@ -25,30 +25,31 @@ enum Colour {
     White = 15,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct FullColourCode(u8);
-
 #[allow(dead_code)]
-impl FullColourCode {
-    fn new(foreground: Colour, background: Colour) -> FullColourCode {
-        FullColourCode((background as u8) << 4 | (foreground as u8))
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+struct Character {
+    charcode: u8,
+    color: u8,
+}
+
+impl Character {
+    fn new(charcode: u8, bg_colour: Colour, fg_colour: Colour) -> Self {
+        Self {
+            charcode,
+            color: (bg_colour as u8) << 4 | (fg_colour as u8),
+        }
     }
 }
 
-#[allow(dead_code)]
-struct Character {
-    char: u8,
-    colour: FullColourCode,
-}
-
-struct VgaTextBuffer {
-    chars: [[Character; BUFFER_WIDTH]; BUFFER_HEIGHT],
+struct Buffer {
+    chars: [[KVolatile<Character>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
 pub struct VgaWriter {
     column_position: usize,
-    colour_code: FullColourCode,
-    buffer: &'static mut VgaTextBuffer,
+    buffer: &'static mut Buffer,
+    default_bg_colour: Colour,
+    default_fg_colour: Colour,
 }
 
 impl VgaWriter {
@@ -56,13 +57,19 @@ impl VgaWriter {
         // move the items up one row
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
-                unsafe {
-                    // TODO: VOLATILE READ AND WRITE TO FILL
-                    // or we could just write a volatile cell
-                    let character = read_volatile(self.buffer.chars[row][col]);
-                    self.buffer.chars[row - 1][col].write(character);
-                };
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
             }
+        }
+
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
+    }
+
+    fn clear_row(&mut self, row: usize) {
+        for col in 0..BUFFER_WIDTH {
+            let character = Character::new(b' ', self.default_bg_colour, self.default_fg_colour);
+            self.buffer.chars[row][col].write(character);
         }
     }
 
@@ -76,28 +83,27 @@ impl VgaWriter {
             self.new_line();
             // continue to write to screen here
         }
-
         let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        let colour = self.colour_code;
 
-        unsafe {
-            write_volatile(
-                &mut self.buffer.chars[row][col] as *mut Character,
-                Character { char, colour },
-            )
-        }
+        self.buffer.chars[row][col].write(Character::new(char, Colour::Black, Colour::White));
         self.column_position += 1;
+    }
+
+    pub fn clear_screen(&mut self) {
+        for row in 0..BUFFER_HEIGHT {
+            self.clear_row(row);
+        }
     }
 }
 
 impl core::fmt::Write for VgaWriter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for byte in s.bytes() {
-            if 0x20 <= byte && byte <= 0x7e {
-                self.write_byte(byte);
-            } else {
-                self.write_byte(0xfe);
+            match byte {
+                b'\n' => self.write_byte(byte), // handle \n
+                0x20..=0x7e => self.write_byte(byte),
+                _ => self.write_byte(0xfe),
             }
         }
 
@@ -108,8 +114,10 @@ impl core::fmt::Write for VgaWriter {
 pub fn write() {
     let mut writer = VgaWriter {
         column_position: 0,
-        colour_code: FullColourCode::new(Colour::White, Colour::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut VgaTextBuffer) },
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+        default_bg_colour: Colour::Black,
+        default_fg_colour: Colour::White,
     };
-    let _ = writer.write_str("Hello world!");
+    writer.clear_screen();
+    let _ = writer.write_str("Hello world!\ntest");
 }
