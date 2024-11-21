@@ -1,13 +1,11 @@
-use core::fmt::Write;
-use kvolatile::KVolatile;
+use sink::mutex::SpinMutex;
 
 const BUFFER_WIDTH: usize = 80;
 const BUFFER_HEIGHT: usize = 25;
+const BUFFER_LOCATION: *mut u16 = 0xb8000 as *mut u16;
 
 #[allow(dead_code)]
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Colour {
+pub enum Colours {
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -15,6 +13,7 @@ enum Colour {
     Red = 4,
     Magenta = 5,
     Brown = 6,
+    LightGrey = 7,
     DarkGrey = 8,
     LightBlue = 9,
     LightGreen = 10,
@@ -25,99 +24,136 @@ enum Colour {
     White = 15,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct Character {
-    charcode: u8,
-    color: u8,
+#[inline]
+fn rec_colour(foreground: Colours, background: Colours) -> u8 {
+    (background as u8) << 4 | foreground as u8
 }
 
-impl Character {
-    fn new(charcode: u8, bg_colour: Colour, fg_colour: Colour) -> Self {
+#[inline]
+fn rec_entry(ch: u8, colour: u8) -> u16 {
+    (colour as u16) << 8 | ch as u16
+}
+
+#[inline]
+fn get_offset(row: usize, col: usize) -> usize {
+    row * BUFFER_WIDTH + col
+}
+
+pub struct TermWriter {
+    row: usize,
+    col: usize,
+    colour: u8,
+}
+
+impl TermWriter {
+    const fn new() -> Self {
         Self {
-            charcode,
-            color: (bg_colour as u8) << 4 | (fg_colour as u8),
+            row: BUFFER_HEIGHT - 1,
+            col: 0,
+            colour: 0,
         }
-    }
-}
-
-struct Buffer {
-    chars: [[KVolatile<Character>; BUFFER_WIDTH]; BUFFER_HEIGHT],
-}
-
-pub struct VgaWriter {
-    column_position: usize,
-    buffer: &'static mut Buffer,
-    default_bg_colour: Colour,
-    default_fg_colour: Colour,
-}
-
-impl VgaWriter {
-    pub fn new_line(&mut self) {
-        // move the items up one row
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
-            }
-        }
-
-        self.clear_row(BUFFER_HEIGHT - 1);
-        self.column_position = 0;
     }
 
     fn clear_row(&mut self, row: usize) {
-        for col in 0..BUFFER_WIDTH {
-            let character = Character::new(b' ', self.default_bg_colour, self.default_fg_colour);
-            self.buffer.chars[row][col].write(character);
+        for i in 0..BUFFER_WIDTH {
+            unsafe {
+                BUFFER_LOCATION
+                    .add(get_offset(row, i))
+                    .write_volatile(rec_entry(b' ', self.colour));
+            }
         }
     }
 
-    pub fn write_byte(&mut self, char: u8) {
-        if char == b'\n' {
-            self.new_line();
-            return; // write a new line only
-        }
-
-        if self.column_position >= BUFFER_WIDTH {
-            self.new_line();
-            // continue to write to screen here
-        }
-        let row = BUFFER_HEIGHT - 1;
-        let col = self.column_position;
-
-        self.buffer.chars[row][col].write(Character::new(char, Colour::Black, Colour::White));
-        self.column_position += 1;
-    }
-
-    pub fn clear_screen(&mut self) {
-        for row in 0..BUFFER_HEIGHT {
-            self.clear_row(row);
-        }
-    }
-}
-
-impl core::fmt::Write for VgaWriter {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        for byte in s.bytes() {
-            match byte {
-                b'\n' => self.write_byte(byte), // handle \n
-                0x20..=0x7e => self.write_byte(byte),
-                _ => self.write_byte(0xfe),
+    fn clear(&mut self) {
+        for i in 0..(BUFFER_WIDTH * BUFFER_HEIGHT) {
+            unsafe {
+                BUFFER_LOCATION
+                    .add(i)
+                    .write_volatile(rec_entry(b' ', self.colour));
             }
         }
 
+        self.row = BUFFER_HEIGHT - 1;
+        self.col = 0;
+
+        for i in 0..2 {
+            unsafe {
+                BUFFER_LOCATION
+                    .add(i)
+                    .write_volatile(rec_entry(b'2', self.colour))
+            }
+        }
+    }
+
+    fn new_line(&mut self) {
+        // copy lines upward
+        for r in 1..(self.row + 1) {
+            for c in 0..BUFFER_WIDTH {
+                unsafe {
+                    let ch = BUFFER_LOCATION.add(get_offset(r, c)).read_volatile();
+                    BUFFER_LOCATION.add(get_offset(r - 1, c)).write_volatile(ch);
+                }
+            }
+        }
+        self.clear_row(self.row);
+        self.col = 0;
+    }
+
+    #[allow(dead_code)]
+    fn set_colour(&mut self, foreground: Colours, background: Colours) {
+        self.colour = rec_colour(foreground, background);
+    }
+
+    fn write_char(&mut self, ch: u8) {
+        if ch == b'\n' {
+            self.new_line();
+            return;
+        }
+
+        if self.col >= BUFFER_WIDTH {
+            self.new_line();
+        }
+
+        unsafe {
+            BUFFER_LOCATION
+                .add(get_offset(self.row, self.col))
+                .write_volatile(rec_entry(ch, self.colour));
+        }
+
+        self.col += 1;
+    }
+}
+
+impl core::fmt::Write for TermWriter {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        for ch in s.bytes() {
+            self.write_char(ch);
+        }
         Ok(())
     }
 }
 
-pub fn write() {
-    let mut writer = VgaWriter {
-        column_position: 0,
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-        default_bg_colour: Colour::Black,
-        default_fg_colour: Colour::White,
-    };
-    writer.clear_screen();
-    let _ = writer.write_str("Hello world!\ntest");
+pub static WRITER: SpinMutex<TermWriter> = SpinMutex::new(TermWriter::new());
+
+pub fn init_writer() {
+    let mut guard = WRITER.lock();
+    guard.set_colour(Colours::White, Colours::Black);
+    guard.clear();
+}
+
+#[doc(hidden)]
+pub fn _print(args: core::fmt::Arguments) {
+    use core::fmt::Write;
+    WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_text_mode::_print(format_args!($($arg)*)));
+}
+
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }

@@ -16,7 +16,8 @@ fn panic_handler(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 fn kernel_main() -> ! {
-    let test: &[u8] = b"Hello world!";
-    vga_text_mode::write();
+    vga_text_mode::init_writer();
+    println!("Hello world!");
+    println!("123");
     loop {}
 }

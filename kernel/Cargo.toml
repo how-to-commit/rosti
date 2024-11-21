@@ -13,3 +13,4 @@ bench = false
 
 [dependencies]
 kvolatile = { path = "../kvolatile" }
+sink = { path = "../sink" }

@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
-use core::marker::PhantomData;
-use core::ptr::{read_volatile, write_volatile, NonNull};
+// use core::marker::PhantomData;
+use core::ptr::{read_volatile, write_volatile};
 
 #[repr(transparent)]
 pub struct KVolatile<T: Copy>(T);
