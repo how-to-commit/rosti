@@ -26,13 +26,15 @@ stack_top:
 .global _start
 .type _start, @function
 _start:
-    /* 
-    Now in 32-bit protected mode. Interrupts and paging are disabled by the
-    bootloader by default. 
-    */
+    // multiboot specifies that we boot into 32-bit protected mode
 
     // setup the stack
     mov $stack_top, %esp
+
+    // push multiboot info as args to kernel_main
+    // reversed calling order: last argument first
+    push %ebx // addr of multiboot info struct
+    push %eax // multiboot magic number
 
     // initialise processor state
     // e.g. set up GDT, paging, etc

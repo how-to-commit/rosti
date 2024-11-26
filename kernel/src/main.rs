@@ -5,19 +5,28 @@ use core::arch::global_asm;
 use core::panic::PanicInfo;
 
 mod libc;
+mod multiboot;
 mod vga_text_mode;
 
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
 #[panic_handler]
-fn panic_handler(_info: &PanicInfo) -> ! {
+fn panic_handler(info: &PanicInfo) -> ! {
+    println!("{}", info);
     loop {}
 }
 
 #[no_mangle]
-fn kernel_main() -> ! {
+pub extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInfo) -> ! {
     vga_text_mode::init_writer();
-    println!("Hello world!");
-    println!("123");
+
+    println!("magic number: {:#x}", magic);
+
+    unsafe {
+        let entry = (*info).get_mmap_entries();
+        println!("mmap length: {}", {entry.length});
+        println!("mmap address: {}", {entry.base_addr});
+    }
+
     loop {}
 }

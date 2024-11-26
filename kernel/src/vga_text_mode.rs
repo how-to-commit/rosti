@@ -75,14 +75,6 @@ impl TermWriter {
 
         self.row = BUFFER_HEIGHT - 1;
         self.col = 0;
-
-        for i in 0..2 {
-            unsafe {
-                BUFFER_LOCATION
-                    .add(i)
-                    .write_volatile(rec_entry(b'2', self.colour))
-            }
-        }
     }
 
     fn new_line(&mut self) {
