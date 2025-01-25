@@ -6,7 +6,7 @@
 
 #![allow(dead_code)]
 
-use core::mem;
+use crate::println;
 
 #[repr(C, packed)]
 pub struct BootInfo {
@@ -62,12 +62,22 @@ pub struct MmapEntry {
 }
 
 impl BootInfo {
-    /// Get the first mmap entry.
-    /// TODO: implementing vec! for this is a good idea.
-    pub fn get_mmap_entries(&self) -> MmapEntry {
-        let entry_ptr =
-            (self.mmap_addr + (mem::size_of::<MmapEntry>() as u32 * 0)) as *const MmapEntry;
-        let res = unsafe { *entry_ptr };
-        res
+    pub unsafe fn get_mmap_entries(&self) -> &[MmapEntry] {
+        let num_entries = self.mmap_length as usize / core::mem::size_of::<MmapEntry>();
+        core::slice::from_raw_parts(self.mmap_addr as *const MmapEntry, num_entries)
+    }
+
+    pub unsafe fn print_mmap_entries(&self) {
+        println!("----- multiboot mmap -----");
+        println!("num entries: {}", { self.mmap_length });
+
+        for entry in self.get_mmap_entries() {
+            println!(
+                "size: {}, len: {}, addr: {}",
+                { entry.size },
+                { entry.length },
+                { entry.base_addr }
+            );
+        }
     }
 }
