@@ -73,10 +73,11 @@ impl BootInfo {
 
         for entry in self.get_mmap_entries() {
             println!(
-                "size: {}, len: {}, addr: {}",
+                "size: {}, len: {}, addr: {}, typ: {}",
                 { entry.size },
                 { entry.length },
-                { entry.base_addr }
+                { entry.base_addr },
+                { entry.type_ }
             );
         }
     }
