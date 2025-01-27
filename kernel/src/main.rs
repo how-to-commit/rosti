@@ -36,17 +36,18 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     }
 
     println!(
-        "start: {:?}; end: {:?};",
+        "kernel start: {:?}, end: {:?}",
         &KERNEL_START as *const u32, &KERNEL_END as *const u32
     );
-
-    ALLOC.lock().init(info);
     (*info).print_mmap_entries();
 
+    ALLOC.lock().init(info);
+
     // test
-    let mut v: Vec<u32> = Vec::new();
-    for i in 1..30 {
+    let mut v: Vec<usize> = Vec::new();
+    for i in 0..100 {
         v.push(i);
+        println!("write {} to: {:p}", &v[i], &v[i]);
     }
 
     loop {}

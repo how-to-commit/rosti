@@ -14,7 +14,7 @@
 .long FLAGS
 .long CHECKSUM
 
-// Allocate 16kb stack with 16-byte alignment (for System V ABI compat). 
+// Allocate 16kb stack with 16-byte alignment
 .section .bss
 .align 16
 stack_bottom:

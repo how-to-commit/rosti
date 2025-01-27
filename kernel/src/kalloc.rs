@@ -47,7 +47,7 @@ impl BumpAlloc {
         let block = (*info)
             .get_mmap_entries()
             .iter()
-            .find(|b| b.type_ == 1)
+            .find(|b| b.type_ == 1 && b.base_addr != 0x0)
             .expect("Usable memory required");
 
         let kstart = &KERNEL_START as *const u32;
@@ -73,12 +73,17 @@ impl BumpAlloc {
             }
         }
 
-        println!("Start segment: {:#4x}; end segment: {:#4x}", start, end);
+        println!(
+            "bumpalloc start segment: {:#4x}, end segment: {:#4x}",
+            start, end
+        );
 
         self.start = start as usize;
         self.end = end as usize;
         self.next = start as usize;
         self.allocs = 0;
+
+        (0x23e008 as *mut usize).write_volatile(0xdeadbeef);
     }
 }
 
@@ -90,14 +95,20 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         let alloc_end = alloc_start + layout.size();
 
         if alloc_end > bump.end {
-            println!("null here, required {}, had {}", alloc_end, bump.end);
+            println!(
+                "ran out of memory! required {}, end {:#4x}, next {:#4x}",
+                layout.size(),
+                bump.end,
+                bump.next
+            );
             return null_mut();
         }
 
         bump.next = alloc_end;
         bump.allocs += 1;
 
-        println!("alloc: {:#4x}", alloc_start);
+        println!("alloc: {:#4x}, next: {:#4x}", alloc_start, bump.next);
+        (bump.next as *mut usize).write_volatile(0xAAAAAAAA);
         return alloc_start as *mut u8;
     }
 
@@ -106,8 +117,9 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         let mut bump = self.lock();
 
         bump.allocs -= 1;
-        if bump.allocs == 0 {
+        if bump.allocs <= 0 {
             bump.next = bump.start;
+            bump.allocs = 0;
         }
     }
 }
