@@ -53,7 +53,6 @@ pub struct BootInfo {
 }
 
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
 pub struct MmapEntry {
     pub size: u32,
     pub base_addr: u64,
@@ -63,22 +62,30 @@ pub struct MmapEntry {
 
 impl BootInfo {
     pub unsafe fn get_mmap_entries(&self) -> &[MmapEntry] {
-        let num_entries = self.mmap_length as usize / core::mem::size_of::<MmapEntry>();
-        core::slice::from_raw_parts(self.mmap_addr as *const MmapEntry, num_entries)
+        core::slice::from_raw_parts(
+            self.mmap_addr as *const MmapEntry,
+            self.mmap_length as usize / core::mem::size_of::<MmapEntry>(),
+        )
     }
 
     pub unsafe fn print_mmap_entries(&self) {
         println!("----- multiboot mmap -----");
-        println!("num entries: {}", { self.mmap_length });
+        let num_entries = self.mmap_length as usize / core::mem::size_of::<MmapEntry>();
+        println!("num entries: {}", num_entries);
 
+        let mut total_sz: u64 = 0;
         for entry in self.get_mmap_entries() {
             println!(
-                "size: {}, len: {}, addr: {}, typ: {}",
+                "size: {}, len: {}K, addr: {:#04x}, typ: {}",
                 { entry.size },
-                { entry.length },
+                { entry.length } as f64 / 1024.0,
                 { entry.base_addr },
                 { entry.type_ }
             );
+            if entry.type_ == 1 {
+                total_sz += entry.length;
+            }
         }
+        println!("total size: {}K", total_sz as f64 / 1024.0);
     }
 }

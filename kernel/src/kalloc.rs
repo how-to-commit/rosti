@@ -1,5 +1,4 @@
-use crate::multiboot::BootInfo;
-use crate::println;
+use crate::{multiboot::BootInfo, println, KERNEL_END, KERNEL_START};
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
 use sink::mutex;
@@ -48,12 +47,37 @@ impl BumpAlloc {
         let block = (*info)
             .get_mmap_entries()
             .iter()
-            .find(|b| b.base_addr == 0)
-            .expect("Free RAM required");
+            .find(|b| b.type_ == 1)
+            .expect("Usable memory required");
 
-        self.start = (block.base_addr + 16386) as usize;
-        self.end = (block.base_addr + 16386 + block.length) as usize;
-        self.next = (block.base_addr + 16386) as usize;
+        let kstart = &KERNEL_START as *const u32;
+        let kend = &KERNEL_END as *const u32;
+
+        let mut end = block.base_addr + block.length;
+        let mut start = block.base_addr;
+
+        if block.base_addr == 0 {
+            start = kend as u64 + 4;
+            end = start + block.length;
+        } else {
+            if end < kstart as u64 {
+                end = kstart as u64 - 4;
+            }
+
+            if start < kend as u64 {
+                start = kend as u64 + 4;
+            }
+
+            if end < start {
+                panic!("Bad! No memory other than kernel memory.")
+            }
+        }
+
+        println!("Start segment: {:#4x}; end segment: {:#4x}", start, end);
+
+        self.start = start as usize;
+        self.end = end as usize;
+        self.next = start as usize;
         self.allocs = 0;
     }
 }
@@ -73,7 +97,7 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         bump.next = alloc_end;
         bump.allocs += 1;
 
-        println!("alloc: {}", alloc_start);
+        println!("alloc: {:#4x}", alloc_start);
         return alloc_start as *mut u8;
     }
 
