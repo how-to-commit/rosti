@@ -51,6 +51,11 @@ SECTIONS
 		*(.bss)
 	}
 
+	/* avoid collision with .bss */
+	.phony : {
+
+	}
+
 	KERNEL_END = .;
 
 	/* The compiler may produce other sections, by default it will put them in

@@ -83,7 +83,11 @@ impl BumpAlloc {
         self.next = start as usize;
         self.allocs = 0;
 
-        (0x23e008 as *mut usize).write_volatile(0xdeadbeef);
+        println!("a: {:p}, {}", &self, core::mem::size_of_val(self));
+        println!("a: {:p}", &self.next);
+        println!("a: {:p}", &self.start);
+        println!("a: {:p}", &self.end);
+        println!("a: {:p}", &self.allocs);
     }
 }
 
@@ -108,7 +112,6 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         bump.allocs += 1;
 
         println!("alloc: {:#4x}, next: {:#4x}", alloc_start, bump.next);
-        (bump.next as *mut usize).write_volatile(0xAAAAAAAA);
         return alloc_start as *mut u8;
     }
 
