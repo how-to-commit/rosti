@@ -1,7 +1,12 @@
-use crate::{multiboot::BootInfo, println, KERNEL_END, KERNEL_START};
+use crate::{multiboot::BootInfo, println};
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
 use sink::mutex;
+
+extern "C" {
+    static KERNEL_START: u32;
+    static KERNEL_END: u32;
+}
 
 /// Align a given address upward to the `align` boundary
 ///
@@ -82,12 +87,6 @@ impl BumpAlloc {
         self.end = end as usize;
         self.next = start as usize;
         self.allocs = 0;
-
-        println!("a: {:p}, {}", &self, core::mem::size_of_val(self));
-        println!("a: {:p}", &self.next);
-        println!("a: {:p}", &self.start);
-        println!("a: {:p}", &self.end);
-        println!("a: {:p}", &self.allocs);
     }
 }
 
@@ -111,11 +110,10 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         bump.next = alloc_end;
         bump.allocs += 1;
 
-        println!("alloc: {:#4x}, next: {:#4x}", alloc_start, bump.next);
         return alloc_start as *mut u8;
     }
 
-    /// deallocs the whole thing
+    /// deallocs the whole thing - it a bump allocator
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
         let mut bump = self.lock();
 

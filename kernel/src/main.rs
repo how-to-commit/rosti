@@ -7,20 +7,16 @@ use core::panic::PanicInfo;
 extern crate alloc;
 use alloc::vec::Vec;
 
-mod kalloc;
+mod allocator;
 mod libc;
 mod multiboot;
 mod vga_text_mode;
 
-extern "C" {
-    static KERNEL_START: u32;
-    static KERNEL_END: u32;
-}
-
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
 #[global_allocator]
-static ALLOC: kalloc::Locked<kalloc::BumpAlloc> = kalloc::Locked::new(kalloc::BumpAlloc::new());
+static ALLOC: allocator::Locked<allocator::BumpAlloc> =
+    allocator::Locked::new(allocator::BumpAlloc::new());
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
@@ -34,13 +30,7 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     if magic != 0x2badb002 {
         panic!("Not booted from multiboot")
     }
-
-    println!(
-        "kernel start: {:?}, end: {:?}",
-        &KERNEL_START as *const u32, &KERNEL_END as *const u32
-    );
     (*info).print_mmap_entries();
-
     ALLOC.lock().init(info);
 
     // test
