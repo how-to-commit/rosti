@@ -20,5 +20,6 @@
             "-nostdlib",
             "-nostartfiles"
         ]
-    }
+    },
+    "rustc-abi": "x86-softfloat"
 }
