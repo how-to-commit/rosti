@@ -11,6 +11,7 @@ mod allocator;
 mod libc;
 mod multiboot;
 mod vga_text_mode;
+mod gdt;
 
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
