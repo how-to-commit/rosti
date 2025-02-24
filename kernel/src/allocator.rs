@@ -73,9 +73,7 @@ impl BumpAlloc {
                 start = kend as u64 + 4;
             }
 
-            if end < start {
-                panic!("Bad! No memory other than kernel memory.")
-            }
+            assert!(end >= start, "Bad! No memory other than kernel memory.");
         }
 
         println!(
@@ -83,9 +81,9 @@ impl BumpAlloc {
             start, end
         );
 
-        self.start = start as usize;
-        self.end = end as usize;
-        self.next = start as usize;
+        self.start = usize::try_from(start).expect("fit within u64");
+        self.end = usize::try_from(end).expect("fit within u64");
+        self.next = usize::try_from(start).expect("fit within u64");
         self.allocs = 0;
     }
 }
@@ -110,7 +108,7 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         bump.next = alloc_end;
         bump.allocs += 1;
 
-        return alloc_start as *mut u8;
+        alloc_start as *mut u8
     }
 
     /// deallocs the whole thing - it a bump allocator
@@ -118,7 +116,8 @@ unsafe impl GlobalAlloc for Locked<BumpAlloc> {
         let mut bump = self.lock();
 
         bump.allocs -= 1;
-        if bump.allocs <= 0 {
+
+        if bump.allocs == 0 {
             bump.next = bump.start;
             bump.allocs = 0;
         }

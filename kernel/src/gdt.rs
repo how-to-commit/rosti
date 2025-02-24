@@ -1,18 +1,25 @@
 #![allow(dead_code)]
+use alloc::vec::Vec;
 use core::arch::asm;
+// use core::cell::RefCell;
 
+/// The output of the GDTR instruction.
 #[repr(C, packed)]
-struct GdtTable {
-    limit: u16,
-    base: u32,
+struct GdtRegister {
+    limit: u16, // size of GDT table
+    base: u32,  // pointer to GDT table
 }
 
-impl GdtTable {
+impl GdtRegister {
     unsafe fn read_from_sgdt() -> Self {
         let mut ret = core::mem::MaybeUninit::uninit();
         asm!(r#"sgdt ({})"#, in (reg) ret.as_mut_ptr(), options(att_syntax, nostack, preserves_flags));
         ret.assume_init()
     }
+}
+
+struct GdtTable {
+    inner: Vec<GdtSegment>,
 }
 
 #[repr(u8)]
@@ -48,23 +55,27 @@ impl GdtSegment {
     }
 
     /// modified from: osdev wiki
-    /// https://wiki.osdev.org/GDT_Tutorial
-    fn as_u64(self) -> u64 {
-        let mut desc = (self.limit & 0x000f_0000) as u64;
-        desc |= (self.flag as u64) << 16 & 0x00f0_0000;
-        desc |= (self.access_byte as u64) << 8 & 0x0000_ff00;
-        desc |= (self.base as u64) >> 16 & 0x0000_00ff;
-        desc |= self.base as u64 & 0xff00_0000;
+    /// <https://wiki.osdev.org/GDT_Tutorial>
+    fn as_u64(&self) -> u64 {
+        let mut desc = u64::from(self.limit & 0x000f_0000);
+        desc |= u64::from(self.flag) << 16 & 0x00f0_0000;
+        desc |= u64::from(self.access_byte) << 8 & 0x0000_ff00;
+        desc |= u64::from(self.base) >> 16 & 0x0000_00ff;
+        desc |= u64::from(self.base) & 0xff00_0000;
 
-        desc = desc << 32;
-        desc |= (self.base as u64) << 16;
-        desc |= (self.limit & 0x0000_ffff) as u64;
+        desc <<= 32;
+        desc |= u64::from(self.base) << 16;
+        desc |= u64::from(self.limit & 0x0000_ffff);
 
         desc
     }
 
+    fn from_u64(_n: u64) -> Self {
+        todo!()
+    }
+
     fn flag_as_u16(self) -> u16 {
-        (self.flag << 8) as u16 | self.access_byte as u16
+        u16::from(self.flag) << 8 | u16::from(self.access_byte)
     }
 
     fn with_access_byte(mut self, item: AccessByte) -> Self {
@@ -153,7 +164,7 @@ fn create_gdt_entries() -> [u64; 3] {
 
 fn init_gdt() {
     let entries = create_gdt_entries().to_vec().leak();
-    let ptr = entries.as_ptr();
+    let _ptr = entries.as_ptr();
 
     // TODO: init the table, write the address to gdtr
     unimplemented!()

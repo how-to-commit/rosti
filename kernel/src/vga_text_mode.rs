@@ -31,7 +31,7 @@ fn rec_colour(foreground: Colours, background: Colours) -> u8 {
 
 #[inline]
 fn rec_entry(ch: u8, colour: u8) -> u16 {
-    (colour as u16) << 8 | ch as u16
+    u16::from(colour) << 8 | u16::from(ch)
 }
 
 #[inline]
@@ -79,7 +79,7 @@ impl TermWriter {
 
     fn new_line(&mut self) {
         // copy lines upward
-        for r in 1..(self.row + 1) {
+        for r in 1..=self.row {
             for c in 0..BUFFER_WIDTH {
                 unsafe {
                     let ch = BUFFER_LOCATION.add(get_offset(r, c)).read_volatile();
@@ -134,14 +134,14 @@ pub fn init_writer() {
 }
 
 #[doc(hidden)]
-pub fn _print(args: core::fmt::Arguments) {
+pub fn print_(args: core::fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
 }
 
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_text_mode::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::vga_text_mode::print_(format_args!($($arg)*)));
 }
 
 #[macro_export]

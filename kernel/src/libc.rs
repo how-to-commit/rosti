@@ -15,21 +15,20 @@ pub unsafe extern "C" fn memcpy(dst: *mut u8, src: *mut u8, len: usize) -> *mut 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn memcmp(lhs: *mut u8, rhs: *mut u8, count: usize) -> i32 {
+pub unsafe extern "C" fn memcmp(lhs: *const u8, rhs: *const u8, count: usize) -> i32 {
     if lhs == rhs {
         return 0;
     }
 
     for i in 0..count {
-        if *lhs > *rhs {
-            return 1;
-        } else if *rhs > *lhs {
-            return -1;
+        let cmp = lhs.cmp(&rhs) as i32;
+        if cmp != 0 {
+            return cmp;
         }
 
-        *lhs.add(i);
-        *rhs.add(i);
+        let _ = lhs.add(i);
+        let _ = rhs.add(i);
     }
 
-    return 0;
+    0
 }

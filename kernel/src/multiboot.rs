@@ -1,4 +1,4 @@
-// See: https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
+// See: <https://www.gnu.org/software/grub/manual/multiboot/multiboot.html>
 //
 // Struct members are named the same as in the multiboot spec, howeer those
 // names that are reserved in Rust are postfixed with an underscore.
@@ -68,6 +68,7 @@ impl BootInfo {
         )
     }
 
+    #[allow(clippy::cast_precision_loss)]
     pub unsafe fn print_mmap_entries(&self) {
         println!("----- multiboot mmap -----");
         let num_entries = self.mmap_length as usize / core::mem::size_of::<MmapEntry>();
