@@ -141,7 +141,7 @@ fn create_gdt_entries() -> [u64; 3] {
 
     let blank = GdtSegment::new(0, 0).as_u64();
 
-    [code, data, blank]
+    [blank, code, data]
 }
 
 pub fn init_gdt() {
@@ -154,7 +154,25 @@ pub fn init_gdt() {
         base: ptr as u32,
     };
 
+    // disable interrupts and load gdt
     unsafe {
-        asm!(r#"lgdt ({gdt})"#, gdt = in (reg) &gdt, options(att_syntax));
+        asm!(r#"
+            cli
+            lgdt ({gdt})
+        "#, gdt = in (reg) &gdt, options(att_syntax));
+    }
+
+    // reload segments
+    unsafe {
+        asm!(r#"
+            jmp $0x08, $1f
+            1:
+            mov $0x10, {r}
+            mov {r}, %ds
+            mov {r}, %es
+            mov {r}, %fs
+            mov {r}, %ss
+            mov {r}, %gs
+        "#, r = out (reg) _, options(att_syntax));
     }
 }
