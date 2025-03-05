@@ -1,40 +1,30 @@
-#![allow(dead_code)]
-use alloc::vec::Vec;
+#[allow(dead_code)]
+// allow dead code because there's a lot of variants that we explicitly do not
+// initialise, but we still include them for the sake of following the spec
+// (and maybe if we choose to actually implement this in the future).
+//
+// Unused variants include: AccessByte::Direction, Privilege0 through 3
+// and long mode.
 use core::arch::asm;
-// use core::cell::RefCell;
 
-/// The output of the GDTR instruction.
 #[repr(C, packed)]
-struct GdtRegister {
-    limit: u16, // size of GDT table
-    base: u32,  // pointer to GDT table
-}
-
-impl GdtRegister {
-    unsafe fn read_from_sgdt() -> Self {
-        let mut ret = core::mem::MaybeUninit::uninit();
-        asm!(r#"sgdt ({})"#, in (reg) ret.as_mut_ptr(), options(att_syntax, nostack, preserves_flags));
-        ret.assume_init()
-    }
-}
-
 struct GdtTable {
-    inner: Vec<GdtSegment>,
+    limit: u16,
+    base: u32,
 }
 
 #[repr(u8)]
 enum AccessByte {
     Accessed = 1,
     ReadWrite = 2,
-    Direction = 4,
+    // Direction = 4,
     Executable = 8,
     NotSystemDescriptor = 16,
     Present = 128,
-
-    Privilege0 = 0,
-    Privilege1 = 32,
-    Privilege2 = 64,
-    Privilege3 = 96,
+    // Privilege0 = 0,
+    // Privilege1 = 32,
+    // Privilege2 = 64,
+    // Privilege3 = 96,
 }
 
 struct GdtSegment {
@@ -55,27 +45,19 @@ impl GdtSegment {
     }
 
     /// modified from: osdev wiki
-    /// <https://wiki.osdev.org/GDT_Tutorial>
+    /// https://wiki.osdev.org/GDT_Tutorial
     fn as_u64(&self) -> u64 {
-        let mut desc = u64::from(self.limit & 0x000f_0000);
-        desc |= u64::from(self.flag) << 16 & 0x00f0_0000;
-        desc |= u64::from(self.access_byte) << 8 & 0x0000_ff00;
-        desc |= u64::from(self.base) >> 16 & 0x0000_00ff;
-        desc |= u64::from(self.base) & 0xff00_0000;
+        let mut desc = (self.limit & 0x000f_0000) as u64;
+        desc |= (self.flag as u64) << 16 & 0x00f0_0000;
+        desc |= (self.access_byte as u64) << 8 & 0x0000_ff00;
+        desc |= (self.base as u64) >> 16 & 0x0000_00ff;
+        desc |= self.base as u64 & 0xff00_0000;
 
         desc <<= 32;
-        desc |= u64::from(self.base) << 16;
-        desc |= u64::from(self.limit & 0x0000_ffff);
+        desc |= (self.base as u64) << 16;
+        desc |= (self.limit & 0x0000_ffff) as u64;
 
         desc
-    }
-
-    fn from_u64(_n: u64) -> Self {
-        todo!()
-    }
-
-    fn flag_as_u16(self) -> u16 {
-        u16::from(self.flag) << 8 | u16::from(self.access_byte)
     }
 
     fn with_access_byte(mut self, item: AccessByte) -> Self {
@@ -159,13 +141,20 @@ fn create_gdt_entries() -> [u64; 3] {
 
     let blank = GdtSegment::new(0, 0).as_u64();
 
-    [blank, code, data]
+    [code, data, blank]
 }
 
-fn init_gdt() {
+pub fn init_gdt() {
     let entries = create_gdt_entries().to_vec().leak();
-    let _ptr = entries.as_ptr();
+    let ptr = entries.as_ptr();
+    let size = entries.len() * core::mem::size_of::<GdtSegment>();
 
-    // TODO: init the table, write the address to gdtr
-    unimplemented!()
+    let gdt: GdtTable = GdtTable {
+        limit: size as u16,
+        base: ptr as u32,
+    };
+
+    unsafe {
+        asm!(r#"lgdt ({gdt})"#, gdt = in (reg) &gdt, options(att_syntax));
+    }
 }
