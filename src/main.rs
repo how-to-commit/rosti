@@ -26,14 +26,17 @@ fn panic_handler(info: &PanicInfo) -> ! {
     loop {}
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInfo) -> ! {
     vga_text_mode::init_writer();
     if magic != 0x2badb002 {
         panic!("Not booted from multiboot")
     }
-    (*info).print_mmap_entries();
-    ALLOC.lock().init(info);
+
+    unsafe {
+        (*info).print_mmap_entries();
+        ALLOC.lock().init(info);
+    }
 
     gdt::init_gdt();
 

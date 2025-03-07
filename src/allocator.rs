@@ -3,7 +3,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
 use sink::mutex;
 
-extern "C" {
+unsafe extern "C" {
     static KERNEL_START: u32;
     static KERNEL_END: u32;
 }
@@ -49,14 +49,20 @@ impl BumpAlloc {
     }
 
     pub unsafe fn init(&mut self, info: *const BootInfo) {
-        let block = (*info)
-            .get_mmap_entries()
-            .iter()
-            .find(|b| b.type_ == 1 && b.base_addr != 0x0)
-            .expect("Usable memory required");
+        let block;
+        let kstart;
+        let kend;
 
-        let kstart = &KERNEL_START as *const u32;
-        let kend = &KERNEL_END as *const u32;
+        unsafe {
+            block = (*info)
+                .get_mmap_entries()
+                .iter()
+                .find(|b| b.type_ == 1 && b.base_addr != 0x0)
+                .expect("Usable memory required");
+
+            kstart = &KERNEL_START as *const u32;
+            kend = &KERNEL_END as *const u32;
+        }
 
         let mut end = block.base_addr + block.length;
         let mut start = block.base_addr;

@@ -1,10 +1,3 @@
-#[allow(dead_code)]
-// allow dead code because there's a lot of variants that we explicitly do not
-// initialise, but we still include them for the sake of following the spec
-// (and maybe if we choose to actually implement this in the future).
-//
-// Unused variants include: AccessByte::Direction, Privilege0 through 3
-// and long mode.
 use core::arch::asm;
 
 #[repr(C, packed)]
@@ -34,6 +27,13 @@ struct GdtSegment {
     limit: u32,
 }
 
+// allow dead code because there's a lot of variants that we explicitly do not
+// initialise, but we still include them for the sake of following the spec
+// (and maybe if we choose to actually implement this in the future).
+//
+// Unused variants include: AccessByte::Direction, Privilege0 through 3
+// and the set_long_mode method.
+#[allow(dead_code)]
 impl GdtSegment {
     fn new(base: u32, limit: u32) -> Self {
         Self {

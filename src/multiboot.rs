@@ -62,10 +62,12 @@ pub struct MmapEntry {
 
 impl BootInfo {
     pub unsafe fn get_mmap_entries(&self) -> &[MmapEntry] {
-        core::slice::from_raw_parts(
-            self.mmap_addr as *const MmapEntry,
-            self.mmap_length as usize / core::mem::size_of::<MmapEntry>(),
-        )
+        unsafe {
+            core::slice::from_raw_parts(
+                self.mmap_addr as *const MmapEntry,
+                self.mmap_length as usize / core::mem::size_of::<MmapEntry>(),
+            )
+        }
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -75,7 +77,11 @@ impl BootInfo {
         println!("num entries: {}", num_entries);
 
         let mut total_sz: u64 = 0;
-        for entry in self.get_mmap_entries() {
+        let mmap_entries;
+        unsafe {
+            mmap_entries = self.get_mmap_entries();
+        }
+        for entry in mmap_entries {
             println!(
                 "size: {}, len: {}K, addr: {:#04x}, typ: {}",
                 { entry.size },
