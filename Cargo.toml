@@ -1,3 +1,6 @@
+[workspace]
+members = ["sink", "kvolatile"]
+
 [package]
 name = "kernel"
 version = "0.1.0"
@@ -12,5 +15,5 @@ doctest = false
 bench = false
 
 [dependencies]
-kvolatile = { path = "../kvolatile" }
-sink = { path = "../sink" }
+kvolatile = { path = "kvolatile" }
+sink = { path = "sink" }
