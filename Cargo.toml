@@ -1,5 +1,5 @@
 [workspace]
-members = ["sink", "kvolatile"]
+members = ["sink"]
 
 [package]
 name = "kernel"
@@ -15,5 +15,4 @@ doctest = false
 bench = false
 
 [dependencies]
-kvolatile = { path = "kvolatile" }
 sink = { path = "sink" }

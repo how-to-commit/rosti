@@ -6,13 +6,8 @@ version = 4
 name = "kernel"
 version = "0.1.0"
 dependencies = [
- "kvolatile",
  "sink",
 ]
-
-[[package]]
-name = "kvolatile"
-version = "0.1.0"
 
 [[package]]
 name = "sink"

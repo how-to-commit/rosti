@@ -1,7 +1,8 @@
 use core::{
     cell::UnsafeCell,
     hint::spin_loop,
-    ops::{Deref, DerefMut},
+    marker::{Send, Sync},
+    ops::{Deref, DerefMut, Drop},
     sync::atomic::{AtomicBool, Ordering},
 };
 
