@@ -10,7 +10,6 @@ use alloc::vec::Vec;
 
 mod allocator;
 mod gdt;
-mod libc;
 mod multiboot;
 mod vga_text_mode;
 
