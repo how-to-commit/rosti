@@ -1,6 +1,7 @@
 #![warn(clippy::all)]
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 use core::arch::global_asm;
 use core::panic::PanicInfo;
@@ -10,6 +11,8 @@ use alloc::vec::Vec;
 
 mod allocator;
 mod gdt;
+mod interrupt;
+mod isr;
 mod multiboot;
 mod vga_text_mode;
 
@@ -38,6 +41,7 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     }
 
     gdt::init_gdt();
+    interrupt::init_idt();
 
     // test
     let mut v: Vec<usize> = Vec::new();
