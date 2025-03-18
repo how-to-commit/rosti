@@ -14,6 +14,7 @@ mod gdt;
 mod interrupt;
 mod isr;
 mod multiboot;
+mod utils;
 mod vga_text_mode;
 
 global_asm!(include_str!("boot.s"), options(att_syntax));
