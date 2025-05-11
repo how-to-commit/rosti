@@ -19,7 +19,7 @@ macro_rules! impl_bit_manipulation {
             }
 
             #[inline]
-            fn set_bits(&self, shift_left: Self, val: Self, len: Self) -> Self {
+            fn set_bits(&self, shift_left: Self, len: Self, val: Self) -> Self {
                 let mask = Self::create_mask(shift_left, len);
                 (*self & !mask) | ((val << shift_left) & mask)
             }

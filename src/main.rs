@@ -12,7 +12,6 @@ use alloc::vec::Vec;
 mod allocator;
 mod gdt;
 mod interrupt;
-mod isr;
 mod multiboot;
 mod utils;
 mod vga_text_mode;
@@ -44,11 +43,19 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     gdt::init_gdt();
     interrupt::init_idt();
 
-    // test
+    // test alloc
     let mut v: Vec<usize> = Vec::new();
     for i in 0..100 {
         v.push(i);
         println!("write {} to: {:p}", &v[i], &v[i]);
+    }
+    for i in 0..100 {
+        println!("readback {}", &v[i]);
+    }
+
+    // test
+    unsafe {
+        core::arch::asm!("int 13");
     }
 
     #[allow(clippy::empty_loop)]
