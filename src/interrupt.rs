@@ -33,19 +33,16 @@ impl Entry {
         gate_type: GateType,
         dpl: u8,
     ) -> Self {
-        let mut new = 0u64;
-
         // write the isr address
         let isr_offset = isr as u32;
-        new = new
-            .set_bits(0, 16, u64::from(isr_offset.get_bits(0, 16)))
-            .set_bits(48, 16, u64::from(isr_offset.get_bits(15, 16)))
-            .set_bits(16, 16, u64::from(segment_selector))
-            .set_bits(40, 4, u64::from(gate_type as u8))
-            .set_bits(45, 2, u64::from(dpl))
-            .set_one_bit(47, true); // enable bit
-
-        Entry(new)
+        Entry(
+            0u64.set_bits(0, 16, u64::from(isr_offset))
+                .set_bits(48, 16, u64::from(isr_offset >> 16))
+                .set_bits(16, 16, u64::from(segment_selector))
+                .set_bits(40, 4, u64::from(gate_type as u8))
+                .set_bits(45, 2, u64::from(dpl))
+                .set_one_bit(47, true), // enable bit
+        )
     }
 }
 

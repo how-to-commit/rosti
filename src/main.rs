@@ -54,9 +54,9 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     }
 
     // test
-    unsafe {
-        core::arch::asm!("int 13");
-    }
+    // unsafe {
+    //    core::arch::asm!("int 13");
+    // }
 
     #[allow(clippy::empty_loop)]
     loop {}
