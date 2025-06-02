@@ -7,3 +7,9 @@ build-std-features = ["compiler-builtins-mem"]
 
 [target.'cfg(target_os = "none")']
 runner = "qemu-system-x86_64 -kernel"
+
+[target.i686-unknown-none]
+linker = "i686-elf-gcc"
+rustflags = [
+  "-C", "link-arg=-Tlinker.ld",  # or your actual linker script
+]

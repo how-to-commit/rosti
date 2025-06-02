@@ -15,6 +15,7 @@ mod interrupt;
 mod multiboot;
 mod utils;
 mod vga_text_mode;
+mod keyboard;
 
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
@@ -42,6 +43,7 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
 
     gdt::init_gdt();
     interrupt::init_idt();
+    keyboard::init(); // Initialize keyboard, enable IRQ1
 
     // test alloc
     let mut v: Vec<usize> = Vec::new();
