@@ -12,9 +12,9 @@ use alloc::vec::Vec;
 mod allocator;
 mod gdt;
 mod interrupt;
+mod io;
 mod multiboot;
 mod utils;
-mod vga_text_mode;
 
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
@@ -30,7 +30,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInfo) -> ! {
-    vga_text_mode::init_writer();
+    io::vga::init_writer();
     if magic != 0x2badb002 {
         panic!("Not booted from multiboot")
     }

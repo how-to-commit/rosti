@@ -141,7 +141,7 @@ pub fn print_(args: core::fmt::Arguments) {
 
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_text_mode::print_(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::io::vga::print_(format_args!($($arg)*)));
 }
 
 #[macro_export]
