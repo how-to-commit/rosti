@@ -19,8 +19,8 @@ mod utils;
 global_asm!(include_str!("boot.s"), options(att_syntax));
 
 #[global_allocator]
-static ALLOC: allocator::Locked<allocator::BumpAlloc> =
-    allocator::Locked::new(allocator::BumpAlloc::new());
+static ALLOC: utils::mutex::SpinMutex<allocator::BumpAlloc> =
+    utils::mutex::SpinMutex::new(allocator::BumpAlloc::new());
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
@@ -40,8 +40,10 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
         ALLOC.lock().init(info);
     }
 
+    let mut port_manager = io::ports::PortAllocator::new();
+
     gdt::init_gdt();
-    interrupt::init_idt();
+    interrupt::init_idt(&mut port_manager);
 
     // test alloc
     let mut v: Vec<usize> = Vec::new();
@@ -55,7 +57,7 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
 
     // test
     // unsafe {
-    //    core::arch::asm!("int 13");
+    //     core::arch::asm!("int 13");
     // }
 
     #[allow(clippy::empty_loop)]

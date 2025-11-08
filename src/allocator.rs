@@ -1,7 +1,6 @@
-use crate::{multiboot::BootInfo, println};
+use crate::{multiboot::BootInfo, println, utils::mutex::SpinMutex};
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::null_mut;
-use sink::mutex;
 
 unsafe extern "C" {
     static KERNEL_START: u32;
@@ -13,22 +12,6 @@ unsafe extern "C" {
 /// `align` must be a power of 2.
 fn align_up(addr: usize, align: usize) -> usize {
     (addr + align - 1) & !(align - 1)
-}
-
-pub struct Locked<T> {
-    inner: mutex::SpinMutex<T>,
-}
-
-impl<T> Locked<T> {
-    pub const fn new(inner: T) -> Self {
-        Locked {
-            inner: mutex::SpinMutex::new(inner),
-        }
-    }
-
-    pub fn lock(&self) -> mutex::SpinMutexGuard<T> {
-        self.inner.lock()
-    }
 }
 
 pub struct BumpAlloc {
@@ -94,7 +77,7 @@ impl BumpAlloc {
     }
 }
 
-unsafe impl GlobalAlloc for Locked<BumpAlloc> {
+unsafe impl GlobalAlloc for SpinMutex<BumpAlloc> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let mut bump = self.lock();
 

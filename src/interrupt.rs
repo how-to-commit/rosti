@@ -1,12 +1,14 @@
+use crate::io::ports::PortAllocator;
 use crate::println;
 use crate::utils::bits::CanManipulateBits;
 
-use alloc::vec::Vec;
 use core::arch::asm;
+use core::cell::RefCell;
 
 const IDT_TABLE_SIZE: usize = 256;
-
 type InterruptServiceRoutine = extern "x86-interrupt" fn();
+
+static INTERRUPT_TABLE: InterruptTable = InterruptTable::new();
 
 #[allow(dead_code)]
 #[repr(u8)]
@@ -18,10 +20,11 @@ enum GateType {
     Trap32Bit = 0b1111,
 }
 
+#[derive(Clone, Copy)]
 struct Entry(u64);
 
 impl Entry {
-    fn new_invalid() -> Self {
+    const fn new_invalid() -> Self {
         Entry(0)
     }
 
@@ -47,30 +50,26 @@ impl Entry {
 }
 
 struct InterruptTable {
-    inner: Vec<Entry>,
+    inner: RefCell<[Entry; IDT_TABLE_SIZE]>,
 }
 
 impl InterruptTable {
-    fn new() -> Self {
-        let mut v = Vec::with_capacity(IDT_TABLE_SIZE);
-        for _ in 0..IDT_TABLE_SIZE {
-            v.push(Entry::new_invalid());
+    const fn new() -> Self {
+        Self {
+            inner: RefCell::new([Entry::new_invalid(); IDT_TABLE_SIZE]),
         }
-        Self { inner: v }
     }
 
     fn set_interrupt(&mut self, entry_id: usize, isr: InterruptServiceRoutine) {
         // TODO: figure out what the "attributes" segment of the descriptor means
         let entry = Entry::new(isr, 0x08, GateType::Interrupt32Bit, 0);
-        self.inner[entry_id] = entry;
+        self.inner.borrow_mut()[entry_id] = entry;
     }
 
     fn load(self) {
-        let table = self.inner.leak();
-
         let idtr = Idtr {
-            limit: core::mem::size_of_val(table) as u16,
-            base: table.as_ptr() as u32,
+            limit: (IDT_TABLE_SIZE * 8 - 1) as u16,
+            base: self.inner.as_ptr() as u32,
         };
 
         unsafe {
@@ -82,17 +81,38 @@ impl InterruptTable {
     }
 }
 
+unsafe impl Sync for InterruptTable {}
+
+#[derive(Debug)]
 #[repr(C, packed)]
 struct Idtr {
     limit: u16,
     base: u32,
 }
 
-pub fn init_idt() {
+pub fn init_idt(palloc: &mut PortAllocator) {
+    println!("old idtr: {:?}", get_idtr());
+
+    // mask PIC
+    let mut pic_master = palloc.allocate(0x21).expect("Master PIC port not free");
+    let mut pic_slave = palloc.allocate(0x21).expect("Slave PIC port not free");
+    pic_master.outb(0xff);
+    pic_slave.outb(0xff);
+
+    // load IDT
     let mut new_idt = InterruptTable::new();
     new_idt.set_interrupt(13, isr_general_fault);
     new_idt.load();
-    todo!();
+
+    println!("new idtr: {:?}", get_idtr());
+}
+
+fn get_idtr() -> Idtr {
+    let mut r = core::mem::MaybeUninit::uninit();
+    unsafe {
+        asm!("sidt ({})", in (reg) r.as_mut_ptr(), options(att_syntax, nostack, preserves_flags));
+        r.assume_init()
+    }
 }
 
 extern "x86-interrupt" fn isr_general_fault() {

@@ -1,4 +1,4 @@
-use sink::mutex::SpinMutex;
+use crate::utils::mutex::SpinMutex;
 
 const BUFFER_WIDTH: usize = 80;
 const BUFFER_HEIGHT: usize = 25;

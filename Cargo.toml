@@ -1,6 +1,3 @@
-[workspace]
-members = ["sink"]
-
 [package]
 name = "kernel"
 version = "0.1.0"
@@ -13,6 +10,3 @@ name = "kernel"
 test = false
 doctest = false
 bench = false
-
-[dependencies]
-sink = { path = "sink" }

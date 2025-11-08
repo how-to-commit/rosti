@@ -37,14 +37,14 @@ impl Port {
     pub fn inb(&mut self) -> u8 {
         let mut ret;
         unsafe {
-            asm!("in %dx, %al", in("dx") self.addr, out("al") ret);
+            asm!("in %dx, %al", in("dx") self.addr, out("al") ret, options(att_syntax));
         }
         ret
     }
 
     pub fn outb(&mut self, b: u8) {
         unsafe {
-            asm!("out %al, %dx", in("dx") self.addr, in("al") b);
+            asm!("out %al, %dx", in("dx") self.addr, in("al") b, options(att_syntax));
         }
     }
 }
