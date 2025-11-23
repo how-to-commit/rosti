@@ -1,18 +1,16 @@
-// from osdev barebones
-
 // Multiboot constants
-.set ALIGN, 1<<0
-.set MEMINFO, 1<<1
-.set FLAGS, ALIGN | MEMINFO
-.set MAGIC, 0x1BADB002
-.set CHECKSUM, -(MAGIC + FLAGS)
+.set MB_ALIGN, 1<<0
+.set MB_MEMINFO, 1<<1
+.set MB_FLAGS, MB_ALIGN | MB_MEMINFO
+.set MB_MAGIC, 0x1BADB002
+.set MB_CHECKSUM, -(MB_MAGIC + MB_FLAGS)
 
 // Multiboot header
 .section .multiboot
 .align 4
-.long MAGIC
-.long FLAGS
-.long CHECKSUM
+.long MB_MAGIC
+.long MB_FLAGS
+.long MB_CHECKSUM
 
 // Allocate 16kb stack with 16-byte alignment
 .section .bss
@@ -35,9 +33,6 @@ _start:
     // reversed calling order: last argument first
     push %ebx // addr of multiboot info struct
     push %eax // multiboot magic number
-
-    // initialise processor state
-    // e.g. set up GDT, paging, etc
 
     // enter the kernel
     call kernel_main

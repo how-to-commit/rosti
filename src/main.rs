@@ -28,6 +28,9 @@ fn panic_handler(info: &PanicInfo) -> ! {
     loop {}
 }
 
+static PORT_MANAGER: utils::mutex::SpinMutex<io::ports::PortAllocator> =
+    utils::mutex::SpinMutex::new(io::ports::PortAllocator::new());
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInfo) -> ! {
     io::vga::init_writer();
@@ -39,21 +42,10 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
         (*info).print_mmap_entries();
         ALLOC.lock().init(info);
     }
-
-    let mut port_manager = io::ports::PortAllocator::new();
+    println!("hi");
 
     gdt::init_gdt();
-    interrupt::init_idt(&mut port_manager);
-
-    // test alloc
-    let mut v: Vec<usize> = Vec::new();
-    for i in 0..100 {
-        v.push(i);
-        println!("write {} to: {:p}", &v[i], &v[i]);
-    }
-    for i in 0..100 {
-        println!("readback {}", &v[i]);
-    }
+    interrupt::init_idt(&mut PORT_MANAGER.lock());
 
     // test
     // unsafe {

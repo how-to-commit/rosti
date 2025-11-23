@@ -14,6 +14,7 @@ impl PortAllocator {
 
     pub fn allocate(&mut self, port_id: u16) -> Option<Port> {
         if !self.used[port_id as usize] {
+            self.used[port_id as usize] = true;
             return Some(Port {
                 addr: port_id,
                 parent_allocator: self as *const _ as *mut _,

@@ -95,7 +95,7 @@ pub fn init_idt(palloc: &mut PortAllocator) {
 
     // mask PIC
     let mut pic_master = palloc.allocate(0x21).expect("Master PIC port not free");
-    let mut pic_slave = palloc.allocate(0x21).expect("Slave PIC port not free");
+    let mut pic_slave = palloc.allocate(0xA0).expect("Slave PIC port not free");
     pic_master.outb(0xff);
     pic_slave.outb(0xff);
 
