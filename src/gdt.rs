@@ -6,18 +6,19 @@ struct GdtTable {
     base: u32,
 }
 
+#[allow(dead_code)]
 #[repr(u8)]
 enum AccessByte {
     Accessed = 1,
     ReadWrite = 2,
-    // Direction = 4,
+    Direction = 4,
     Executable = 8,
     NotSystemDescriptor = 16,
     Present = 128,
-    // Privilege0 = 0,
-    // Privilege1 = 32,
-    // Privilege2 = 64,
-    // Privilege3 = 96,
+    Privilege0 = 0,
+    Privilege1 = 32,
+    Privilege2 = 64,
+    Privilege3 = 96,
 }
 
 struct GdtSegment {

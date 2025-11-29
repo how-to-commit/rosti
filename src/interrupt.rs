@@ -3,12 +3,11 @@ use crate::println;
 use crate::utils::bits::CanManipulateBits;
 
 use core::arch::asm;
-use core::cell::RefCell;
 
 const IDT_TABLE_SIZE: usize = 256;
 type InterruptServiceRoutine = extern "x86-interrupt" fn();
 
-static INTERRUPT_TABLE: InterruptTable = InterruptTable::new();
+static mut INTERRUPT_TABLE: InterruptTable = InterruptTable::new();
 
 #[allow(dead_code)]
 #[repr(u8)]
@@ -50,23 +49,22 @@ impl Entry {
 }
 
 struct InterruptTable {
-    inner: RefCell<[Entry; IDT_TABLE_SIZE]>,
+    inner: [Entry; IDT_TABLE_SIZE],
 }
 
 impl InterruptTable {
     const fn new() -> Self {
         Self {
-            inner: RefCell::new([Entry::new_invalid(); IDT_TABLE_SIZE]),
+            inner: [Entry::new_invalid(); IDT_TABLE_SIZE],
         }
     }
 
     fn set_interrupt(&mut self, entry_id: usize, isr: InterruptServiceRoutine) {
-        // TODO: figure out what the "attributes" segment of the descriptor means
         let entry = Entry::new(isr, 0x08, GateType::Interrupt32Bit, 0);
-        self.inner.borrow_mut()[entry_id] = entry;
+        self.inner[entry_id] = entry;
     }
 
-    fn load(self) {
+    fn load(&self) {
         let idtr = Idtr {
             limit: (IDT_TABLE_SIZE * 8 - 1) as u16,
             base: self.inner.as_ptr() as u32,
@@ -100,9 +98,14 @@ pub fn init_idt(palloc: &mut PortAllocator) {
     pic_slave.outb(0xff);
 
     // load IDT
-    let mut new_idt = InterruptTable::new();
-    new_idt.set_interrupt(13, isr_general_fault);
-    new_idt.load();
+    unsafe {
+        let t = (&raw mut INTERRUPT_TABLE)
+            .as_mut()
+            .expect("interrupt table is free");
+
+        t.set_interrupt(13, isr_general_fault);
+        t.load();
+    }
 
     println!("new idtr: {:?}", get_idtr());
 }
