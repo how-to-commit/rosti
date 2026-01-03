@@ -55,3 +55,17 @@ impl Drop for Port {
         unsafe { (*self.parent_allocator).release(self.addr) }
     }
 }
+
+pub unsafe fn lockfree_inb(port_in: u16) -> u8 {
+    let mut ret;
+    unsafe {
+        asm!("in %dx, %al", in("dx") port_in, out("al") ret, options(att_syntax));
+    }
+    ret
+}
+
+pub unsafe fn lockfree_outb(port_out: u16, val: u8) {
+    unsafe {
+        asm!("out %al, %dx", in("dx") port_out, in("al") val, options(att_syntax));
+    }
+}

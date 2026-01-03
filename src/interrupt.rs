@@ -1,4 +1,4 @@
-use crate::io::ports::PortAllocator;
+use crate::io::ports::{PortAllocator, lockfree_inb, lockfree_outb};
 use crate::println;
 use crate::utils::bits::CanManipulateBits;
 
@@ -19,12 +19,17 @@ enum GateType {
     Trap32Bit = 0b1111,
 }
 
+#[allow(dead_code)] // we are not reading the interior of the Entry struct.
 #[derive(Clone, Copy)]
 struct Entry(u64);
 
 impl Entry {
     const fn new_invalid() -> Self {
         Entry(0)
+    }
+
+    fn new_dummy() -> Self {
+        Self::new(isr_dummy_handler, 0x08, GateType::Interrupt32Bit, 0)
     }
 
     // create a new initialised interrupt table entry:
@@ -64,7 +69,16 @@ impl InterruptTable {
         self.inner[entry_id] = entry;
     }
 
-    fn load(&self) {
+    fn load(&mut self) {
+        // fill out entries with dummies
+        let dummy_entry = Entry::new_dummy();
+        for i in 0..IDT_TABLE_SIZE {
+            let c = self.inner[i].0;
+            if c.get_bits(0, 16) == 0 && c.get_bits(48, 16) == 0 {
+                self.inner[i] = dummy_entry;
+            }
+        }
+
         let idtr = Idtr {
             limit: (IDT_TABLE_SIZE * 8 - 1) as u16,
             base: self.inner.as_ptr() as u32,
@@ -79,8 +93,6 @@ impl InterruptTable {
     }
 }
 
-unsafe impl Sync for InterruptTable {}
-
 #[derive(Debug)]
 #[repr(C, packed)]
 struct Idtr {
@@ -88,14 +100,42 @@ struct Idtr {
     base: u32,
 }
 
+fn remap_pic(palloc: &mut PortAllocator) {
+    let mut pic1_command = palloc.allocate(0x20).expect("Master PIC command port");
+    let mut pic1_data = palloc.allocate(0x21).expect("Master PIC data port");
+    let mut pic2_command = palloc.allocate(0xA0).expect("Slave PIC command port");
+    let mut pic2_data = palloc.allocate(0xA1).expect("Slave PIC data port");
+
+    // initialise PIC with ICW4
+    pic1_command.outb(0x11);
+    pic2_command.outb(0x11);
+
+    // remap master PIC to 0x20, slave to 0x28
+    pic1_data.outb(0x20);
+    pic2_data.outb(0x28);
+
+    pic1_data.outb(0x04); // tell master PIC there is a slave at IRQ2
+    pic2_data.outb(0x02); // cascade ident
+
+    // use 8086 mode
+    pic1_data.outb(0x01);
+    pic2_data.outb(0x01);
+
+    // unmask
+    pic1_data.outb(0b1111_1101);
+    pic2_data.outb(0x00);
+}
+
+unsafe fn pic_send_eoi() {
+    unsafe {
+        lockfree_outb(0x20, 0x20);
+    }
+}
+
 pub fn init_idt(palloc: &mut PortAllocator) {
     println!("old idtr: {:?}", get_idtr());
 
-    // mask PIC
-    let mut pic_master = palloc.allocate(0x21).expect("Master PIC port not free");
-    let mut pic_slave = palloc.allocate(0xA0).expect("Slave PIC port not free");
-    pic_master.outb(0xff);
-    pic_slave.outb(0xff);
+    remap_pic(palloc);
 
     // load IDT
     unsafe {
@@ -104,6 +144,7 @@ pub fn init_idt(palloc: &mut PortAllocator) {
             .expect("interrupt table is free");
 
         t.set_interrupt(13, isr_general_fault);
+        t.set_interrupt(0x21, isr_keyboard_handler);
         t.load();
     }
 
@@ -120,4 +161,21 @@ fn get_idtr() -> Idtr {
 
 extern "x86-interrupt" fn isr_general_fault() {
     println!("fault test");
+}
+
+extern "x86-interrupt" fn isr_keyboard_handler() {
+    unsafe {
+        println!("keyboard input");
+        let t = lockfree_inb(0x60);
+        println!("done kb");
+        println!("{}", t);
+        pic_send_eoi();
+    }
+}
+
+extern "x86-interrupt" fn isr_dummy_handler() {
+    println!("dummy handler!");
+    unsafe {
+        // pic_send_eoi();
+    }
 }

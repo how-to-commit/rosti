@@ -47,10 +47,17 @@ pub unsafe extern "C" fn kernel_main(magic: u32, info: *const multiboot::BootInf
     gdt::init_gdt();
     interrupt::init_idt(&mut PORT_MANAGER.lock());
 
-    // test
-    // unsafe {
-    //     core::arch::asm!("int 13");
-    // }
+    // stub: enable ps2 & interrupts
+    let pm = &mut PORT_MANAGER.lock();
+    let mut ps2_status = pm.allocate(0x64).expect("ps2 status");
+    let mut ps2_data = pm.allocate(0x60).expect("ps2 data");
+    ps2_status.outb(0xAE);
+    ps2_status.outb(0x20);
+    let s = ps2_data.inb() | 0x01;
+    ps2_status.outb(0x60);
+    ps2_data.outb(s);
+
+    println!("ps2 init enable");
 
     #[allow(clippy::empty_loop)]
     loop {}
