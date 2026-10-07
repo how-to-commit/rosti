@@ -1,11 +1,12 @@
 # Rust operating system on i686
 
 ## todo:  
-- [x] gdt loading
-- [x] interrupts 
+- [x] gdt loading  
+- [x] interrupts  
+- [?] keyboard input?  
+- [ ] USE TYPES PROPERLY AND MAKE THINGS ACTUALLY WORK!!! <<<<  
 - [ ] debug/test harness  
 - [ ] paging  
-- [ ] keyboard input? 
 - [ ] rtc?  
 
 ## Project goals  

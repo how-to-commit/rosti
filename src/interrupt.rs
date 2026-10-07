@@ -100,6 +100,19 @@ struct Idtr {
     base: u32,
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C, packed)]
+struct InterruptStackFrame {
+    _unimplemented: [u8; 48],
+    // pub instruction_ptr: _,
+    // pub code_segment: _,
+    // _reserved: [u8; 6],
+    // pub cpu_flags: _,
+    // pub stack_ptr: _,
+    // pub stack_segment: _,
+    // _reserved2: [u8; 6],
+}
+
 fn remap_pic(palloc: &mut PortAllocator) {
     let mut pic1_command = palloc.allocate(0x20).expect("Master PIC command port");
     let mut pic1_data = palloc.allocate(0x21).expect("Master PIC data port");
@@ -159,11 +172,11 @@ fn get_idtr() -> Idtr {
     }
 }
 
-extern "x86-interrupt" fn isr_general_fault() {
+extern "x86-interrupt" fn isr_general_fault(_isf: InterruptStackFrame) {
     println!("fault test");
 }
 
-extern "x86-interrupt" fn isr_keyboard_handler() {
+extern "x86-interrupt" fn isr_keyboard_handler(_isf: InterruptStackFrame) {
     unsafe {
         println!("keyboard input");
         let t = lockfree_inb(0x60);
@@ -173,7 +186,7 @@ extern "x86-interrupt" fn isr_keyboard_handler() {
     }
 }
 
-extern "x86-interrupt" fn isr_dummy_handler() {
+extern "x86-interrupt" fn isr_dummy_handler(_isf: InterruptStackFrame) {
     println!("dummy handler!");
     unsafe {
         // pic_send_eoi();
